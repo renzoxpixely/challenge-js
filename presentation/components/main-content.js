@@ -5,15 +5,22 @@ class MainContent extends HTMLElement {
         super();
         this.attachShadow({ mode: "open" });
         this.countries = [];
+        this.currentPage = 0; // Página actual
+        this.itemsPerPage = 12; // 3 columnas x 4 filas
     }
 
     async connectedCallback() {
         this.countries = await fetchCountries();
         this.renderCountries();
         this.setupModal();
+        this.renderPagination();
     }
 
     renderCountries() {
+        const start = this.currentPage * this.itemsPerPage;
+        const end = start + this.itemsPerPage;
+        const visibleCountries = this.countries.slice(start, end);
+
         this.shadowRoot.innerHTML = `
             <style>
                 .grid-container {
@@ -37,11 +44,28 @@ class MainContent extends HTMLElement {
                     transform: scale(1.05);
                 }
                 .flag {
-                    width: 100px;
+                    width: 80px;
                     height: auto;
                     border-radius: 5px;
                 }
-                /* Estilos del modal */
+                .pagination {
+                    display: flex;
+                    justify-content: center;
+                    margin-top: 20px;
+                }
+                .pagination button {
+                    margin: 5px;
+                    padding: 10px;
+                    border: none;
+                    background: #007bff;
+                    color: white;
+                    cursor: pointer;
+                    border-radius: 5px;
+                }
+                .pagination button:disabled {
+                    background: #ccc;
+                    cursor: not-allowed;
+                }
                 .modal {
                     display: none;
                     position: fixed;
@@ -71,12 +95,16 @@ class MainContent extends HTMLElement {
                 }
             </style>
             <div class="grid-container">
-                ${this.countries.map((country, index) => `
-                    <div class="country-card" data-index="${index}">
+                ${visibleCountries.map((country, index) => `
+                    <div class="country-card" data-index="${start + index}">
                         <img class="flag" src="${country.flags.png}" alt="Flag of ${country.name.common}">
                         <h3>${country.name.common}</h3>
                     </div>
                 `).join('')}
+            </div>
+            <div class="pagination">
+                <button id="prevPage" ${this.currentPage === 0 ? 'disabled' : ''}>Anterior</button>
+                <button id="nextPage" ${end >= this.countries.length ? 'disabled' : ''}>Siguiente</button>
             </div>
             <div class="modal" id="countryModal">
                 <div class="modal-content">
@@ -89,6 +117,16 @@ class MainContent extends HTMLElement {
 
         this.shadowRoot.querySelectorAll('.country-card').forEach(card => {
             card.addEventListener('click', (event) => this.openModal(event));
+        });
+
+        this.shadowRoot.getElementById('prevPage').addEventListener('click', () => {
+            this.currentPage--;
+            this.renderCountries();
+        });
+
+        this.shadowRoot.getElementById('nextPage').addEventListener('click', () => {
+            this.currentPage++;
+            this.renderCountries();
         });
     }
 
